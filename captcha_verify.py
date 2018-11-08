@@ -86,7 +86,7 @@ class Captcha_Verify:
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
-            # saver.restore(sess, tf.train.latest_checkpoint('./model'))  # 继续训练
+            # saver.restore(sess, './model/captcha_model')  # 继续训练
             step = 0
             while True:
                 x_train, y_train = gen_captcha.get_batch(128)

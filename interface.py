@@ -8,13 +8,7 @@ from flask_cors import CORS
 from flask_restful import Resource, Api
 from PIL import Image
 import numpy as np
-import string
 import captcha_verify
-
-# 验证码中的字符
-chars = string.digits + string.ascii_letters
-chars_len = len(chars)
-captcha = 4
 
 # 图片尺寸
 img_height = 70

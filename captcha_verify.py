@@ -6,17 +6,20 @@
 import numpy as np
 import tensorflow as tf
 import string
-from PIL import Image
 import gen_captcha
 
 # 验证码中的字符
-chars = string.digits + string.ascii_letters
+# chars = string.digits + string.ascii_letters
+chars = string.digits + string.ascii_lowercase
 chars_len = len(chars)
 captcha = 4
 
 # 图片尺寸
 img_height = 70
 img_width = 160
+
+# 模型存储地址
+model_addr = 'F:/绝命之学习/验证码识别/govmodel/captcha_model'
 
 
 class Captcha_Verify:
@@ -86,10 +89,10 @@ class Captcha_Verify:
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
-            # saver.restore(sess, './model/captcha_model')  # 继续训练
+            # saver.restore(sess, model_addr)  # 继续训练
             step = 0
             while True:
-                x_train, y_train = gen_captcha.get_batch(128)
+                x_train, y_train = gen_captcha.get_batch()
                 _, loss_ = sess.run([optimizer, loss], feed_dict={self.X: x_train, self.Y: y_train, self.prob: 0.75})
                 print('第{}次迭代，损失函数值{}'.format(step, loss_))
 
@@ -98,7 +101,7 @@ class Captcha_Verify:
                     x_test, y_test = gen_captcha.get_testset()
                     acc = sess.run(accuracy, feed_dict={self.X: x_test, self.Y: y_test, self.prob: 1})
                     print('第{}次迭代，准确率{}'.format(step, acc))
-                    saver.save(sess, "./model/captcha_model", global_step=None, write_meta_graph=True)
+                    saver.save(sess, model_addr, global_step=None, write_meta_graph=True)
 
                     if acc > 0.9:
                         # saver.save(sess, "./model/captcha_model", global_step=None, write_meta_graph=True)
@@ -107,32 +110,34 @@ class Captcha_Verify:
                 step += 1
 
     def captcha_identification(self):
-        """识别验证码测试"""
+        """识别验证码验证"""
         output = self.captcha_cnn()
         saver = tf.train.Saver()
-        # saver = tf.train.import_meta_graph('./model/captcha_model.meta')
 
         with tf.Session() as sess:
-            saver.restore(sess, tf.train.latest_checkpoint('./model'))
-
-            # sess.run(tf.global_variables_initializer())
-            # saver.restore(sess, './model/captcha_model')
+            saver.restore(sess, model_addr)
 
             predict = tf.argmax(tf.reshape(output, [-1, captcha, chars_len]), 2)
 
-            for i in range(10):  # 进行10次验证
-                t, x = gen_captcha.gen_test_img()
-                text_list = sess.run(predict, feed_dict={self.X: [x], self.prob: 1})
+            for i in range(10):
+                X, T = gen_captcha.gen_vertset()
+                text_list = sess.run(predict, feed_dict={self.X: X, self.prob: 1})
+                texts = text_list.tolist()
+                count = 0
+                for i in range(len(texts)):
+                    p_vec = texts[i]
+                    vector = np.zeros(captcha * chars_len)
+                    j = 0
+                    for n in p_vec:
+                        vector[j * chars_len + n] = 1
+                        j += 1
 
-                text = text_list[0].tolist()
-                vector = np.zeros(captcha * chars_len)
-                i = 0
-                for n in text:
-                    vector[i * chars_len + n] = 1
-                    i += 1
-                p_text = gen_captcha.vec2text(vector)
+                    p_text = gen_captcha.vec2text(vector)
+                    if T[i] == p_text:
+                        count += 1
+                    print('验证码为:{}, 预测为:{}'.format(T[i], p_text))
 
-                print('验证码为:{}, 预测为:{}'.format(t, p_text))
+                print('预测准确率为:{}'.format(count / len(texts)))
 
         return True
 
@@ -142,7 +147,7 @@ class Captcha_Verify:
         saver = tf.train.Saver()
 
         with tf.Session() as sess:
-            saver.restore(sess, './model/captcha_model')
+            saver.restore(sess, model_addr)
             predict = tf.argmax(tf.reshape(output, [-1, captcha, chars_len]), 2)
 
             text_list = sess.run(predict, feed_dict={self.X: [x], self.prob: 1})
@@ -164,6 +169,3 @@ if __name__ == '__main__':
     # cv.training_cnn()
 
     cv.captcha_identification()
-
-    # t, x = gen_captcha.gen_test_img()
-    # cv.identification(x)
